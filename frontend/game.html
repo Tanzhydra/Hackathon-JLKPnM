@@ -27,6 +27,23 @@
                     🚪 Keluar
                 </button>
             </div>
+            <div class="absolute top-4 right-4 pointer-events-auto z-[1001]">
+                <button id="open-chat-button" type="button" class="rounded-xl border border-blue-300 bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-lg">Tanya BAAK</button>
+            </div>
+
+            <section id="chat-panel" aria-labelledby="chat-title" class="ui-screen pointer-events-auto absolute right-4 top-16 z-[1150] hidden max-h-[600px] w-[420px] max-w-[calc(100%-2rem)] overflow-y-auto rounded-2xl bg-white p-5 text-slate-800 shadow-2xl">
+                <div class="flex items-center justify-between gap-3">
+                    <h2 id="chat-title" class="text-lg font-bold">Asisten administrasi BAAK</h2>
+                    <button id="close-chat-button" type="button" aria-label="Tutup chatbot" class="rounded-lg bg-slate-200 px-3 py-1">Tutup</button>
+                </div>
+                <p class="mt-2 text-sm">Jawaban tersedia jika ada dokumen resmi yang relevan. Contoh: “Bagaimana prosedur pengajuan Form 14?”</p>
+                <label for="chat-question" class="mt-4 block text-sm font-semibold">Pertanyaan</label>
+                <textarea id="chat-question" maxlength="1000" rows="3" class="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm" placeholder="Tulis satu pertanyaan (maksimal 1000 karakter)"></textarea>
+                <button id="send-chat-button" type="button" class="mt-2 rounded-lg bg-blue-700 px-4 py-2 font-semibold text-white disabled:opacity-50">Kirim pertanyaan</button>
+                <p id="chat-status" role="status" aria-live="polite" class="mt-3 text-sm">Belum ada pertanyaan.</p>
+                <p id="chat-answer" class="mt-2 whitespace-pre-wrap text-sm"></p>
+                <div id="chat-sources" class="mt-3 text-sm"></div>
+            </section>
 
             <!-- TOMBOL INTERAKSI MOUSE -->
             <div id="btn-interact-reception" class="absolute bottom-10 flex justify-center w-full pointer-events-auto hidden">
@@ -101,7 +118,7 @@
                         </div>
                     </div>
 
-                    <div class="flex gap-4 mb-8">
+                    <div class="flex gap-4 mb-4">
                         <div class="w-[190px] h-[120px] bg-[#ffffff] border border-[#8fbef0] rounded-[20px] p-4 flex flex-col justify-between shadow-sm">
                             <span class="text-[#195faa] text-sm font-semibold">Total Pengajuan</span>
                             <span id="count-total" class="text-[#195faa] text-2xl font-semibold">—</span>
@@ -120,7 +137,17 @@
                         </div>
                     </div>
 
-                    <div class="w-full bg-white border border-[#8fbef0] rounded-[20px] p-6 overflow-y-auto max-h-[300px]">
+                    <section aria-labelledby="dashboard-ai-title" class="mb-4 max-h-[145px] overflow-y-auto rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-slate-800">
+                        <div class="flex items-center justify-between gap-3">
+                            <h3 id="dashboard-ai-title" class="font-semibold">Ringkasan AI pengajuan</h3>
+                            <button id="dashboard-summary-button" type="button" class="rounded-lg bg-blue-700 px-3 py-1.5 font-semibold text-white disabled:opacity-50">Buat / perbarui ringkasan</button>
+                        </div>
+                        <p id="dashboard-summary-time" class="mt-1 text-xs text-slate-600"></p>
+                        <p id="dashboard-summary-status" role="status" aria-live="polite" class="mt-2">Tekan tombol untuk membuat ringkasan dari data terbaru.</p>
+                        <p id="dashboard-summary-text" class="mt-2 whitespace-pre-wrap"></p>
+                    </section>
+
+                    <div class="w-full bg-white border border-[#8fbef0] rounded-[20px] p-6 overflow-y-auto max-h-[230px]">
                         <h3 class="text-black text-[18px] font-medium font-['Poppins'] mb-4">Pengajuan Terbaru</h3>
                         
                         <div class="grid grid-cols-6 text-black text-[15px] font-semibold mb-3 px-2">
@@ -150,6 +177,7 @@
                     <p class="text-black text-[13px] font-normal font-['Poppins'] mb-6">
                         Anda akan mengakhiri sesi dan keluar dari akun, pastikan semua pekerjaan anda telah disimpan.
                     </p>
+                    <p id="logout-status" role="status" class="text-sm text-red-600 mb-3"></p>
                     <div class="flex gap-4 w-full">
                         <button onclick="closeLogoutModal()" class="flex-1 py-3 rounded-xl bg-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-300 transition cursor-pointer">Batal</button>
                         <button onclick="executeLogout()" class="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold text-sm hover:bg-red-700 transition shadow-md cursor-pointer">Ya, Keluar</button>
@@ -194,16 +222,20 @@
         }
         async function executeLogout() {
             try {
-                if (window.supabaseClient) {
-                    await window.supabaseClient.auth.signOut();
-                }
+                const auth = await client();
+                const { error } = await auth.auth.signOut();
+                if (error) throw error;
             } catch (e) {
                 console.error('Logout error:', e);
+                document.getElementById('logout-status').textContent = 'Gagal keluar. Silakan coba lagi.';
+                return;
             }
-            window.location.href = 'signin.html';
+            sessionStorage.removeItem('eq_user');
+            sessionStorage.removeItem('eq_dummy');
+            window.location.replace('signin.html');
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-    <script src="game.js"></script>
+    <script src="game.js?v=auth-supabase-2"></script>
 </body>
 </html>

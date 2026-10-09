@@ -64,26 +64,19 @@ function setMessage(id, message, failed = false) {
 }
 
 async function refreshBootstrap(accessToken) {
-    if (window.isDummyMode) {
-        bootstrapData = { 
-            profile: { role: currentUser.role === 'pegawai' ? 'officer' : 'student', full_name: 'Dummy User' }, 
-            requests: [] 
-        };
-        renderStudentRequests();
-        return bootstrapData;
-    }
     bootstrapData = await api('/api/bootstrap', accessToken ? { accessToken } : {});
     const role = bootstrapData.profile.role;
     if (role !== 'student' && role !== 'officer') throw new Error('Peran akun tidak dikenal');
     currentUser = { role: role === 'student' ? 'mahasiswa' : 'pegawai', loggedIn: true, profile: bootstrapData.profile };
-    renderStudentRequests();
+    if ($('game-container')) renderStudentRequests();
     return bootstrapData;
 }
 
 function renderStudentRequests() {
-    if (currentUser.role !== 'mahasiswa' || !bootstrapData) return;
+    const list = $('student-requests');
+    if (currentUser.role !== 'mahasiswa' || !bootstrapData || !list) return;
     const requests = bootstrapData.requests || [];
-    $('student-requests').innerHTML = requests.length
+    list.innerHTML = requests.length
         ? requests.map(item => `<div>${safe(item.id.slice(0, 8))} · ${safe(item.status)} · ${shortDate(item.updated_at)}</div>`).join('')
         : 'Belum ada pengajuan.';
 }
@@ -164,8 +157,82 @@ async function loadDashboard() {
             const student = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
             return `<div class="grid grid-cols-6 items-center px-2 py-2 border-b gap-2"><span title="${safe(r.id)}">${safe(r.id.slice(0, 8))}</span><span>${safe(student?.full_name || '—')}</span><span>Form 14</span><span>${shortDate(r.created_at)}</span><span>${safe(r.status)}</span><button class="view-request text-blue-700 underline" data-id="${safe(r.id)}">Lihat</button></div>`;
         }).join('') : `Belum ada pengajuan untuk program ${safe(data.profile.program_code)}. Pastikan program akun pegawai sesuai dengan program mahasiswa.`;
+        if ($('dashboard-summary-time')?.textContent) {
+            setMessage('dashboard-summary-status', 'Data dashboard diperbarui. Buat ulang ringkasan untuk data terbaru.');
+        }
         setMessage('worker-status', '');
     } catch (error) { setMessage('worker-status', error.message, true); }
+}
+
+async function loadDashboardSummary() {
+    if (currentUser.role !== 'pegawai') return;
+    const button = $('dashboard-summary-button');
+    button.disabled = true;
+    $('dashboard-summary-text').textContent = '';
+    $('dashboard-summary-time').textContent = '';
+    setMessage('dashboard-summary-status', 'Membuat ringkasan...');
+    try {
+        const result = await api('/api/ai/chat', {
+            method: 'POST',
+            body: JSON.stringify({ context: 'dashboard', message: 'Ringkas pengajuan yang terlihat di dashboard' }),
+        });
+        const snapshot = result.snapshot;
+        if (!snapshot || !result.reply) throw new Error('Ringkasan belum tersedia');
+        $('dashboard-summary-time').textContent = `Data diambil: ${new Date(snapshot.snapshot_at).toLocaleString('id-ID')}`;
+        $('dashboard-summary-text').textContent = result.reply;
+        setMessage('dashboard-summary-status', snapshot.total ? `Berdasarkan ${snapshot.total} pengajuan non-draf.` : 'Belum ada pengajuan non-draf.');
+    } catch (error) {
+        setMessage('dashboard-summary-status', error.message, true);
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function sendChatQuestion() {
+    const button = $('send-chat-button');
+    const question = $('chat-question').value.trim();
+    if (!question || question.length > 1000) {
+        setMessage('chat-status', 'Pertanyaan harus 1–1000 karakter.', true);
+        return;
+    }
+    button.disabled = true;
+    $('chat-answer').textContent = '';
+    $('chat-sources').replaceChildren();
+    setMessage('chat-status', 'Mencari sumber resmi dan menyiapkan jawaban...');
+    try {
+        const result = await api('/api/ai/chat', {
+            method: 'POST', body: JSON.stringify({ context: 'general', message: question }),
+        });
+        $('chat-answer').textContent = result.reply || 'Jawaban belum tersedia.';
+        const sources = Array.isArray(result.sources) ? result.sources : [];
+        if (sources.length) {
+            const heading = document.createElement('strong');
+            heading.textContent = 'Sumber resmi:';
+            $('chat-sources').append(heading);
+            const list = document.createElement('ul');
+            list.className = 'list-disc pl-5';
+            for (const source of sources) {
+                let url;
+                try { url = new URL(source.url); } catch { continue; }
+                if (url.protocol !== 'https:' && url.protocol !== 'http:') continue;
+                const item = document.createElement('li');
+                const link = document.createElement('a');
+                link.href = url.href;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.className = 'text-blue-700 underline';
+                link.textContent = `${source.title} (versi ${source.version}, bagian ${source.chunk + 1})`;
+                item.append(link);
+                list.append(item);
+            }
+            $('chat-sources').append(list);
+        }
+        setMessage('chat-status', sources.length ? 'Jawaban berdasarkan sumber yang ditampilkan.' : 'Tidak ada sumber resmi yang cukup relevan.');
+    } catch (error) {
+        setMessage('chat-status', error.message, true);
+    } finally {
+        button.disabled = false;
+    }
 }
 
 async function openRequest(id) {
@@ -474,7 +541,25 @@ class Room1 extends Phaser.Scene {
 // 3. EVENT LISTENER UNTUK HTML FORM
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    if ($('open-chat-button')) {
+        $('open-chat-button').addEventListener('click', () => $('chat-panel').classList.remove('hidden'));
+        $('close-chat-button').addEventListener('click', () => $('chat-panel').classList.add('hidden'));
+        $('send-chat-button').addEventListener('click', sendChatQuestion);
+    }
     if ($('btn-submit-signup')) {
+        const profileEmail = sessionStorage.getItem('complete_profile_email');
+        sessionStorage.removeItem('complete_profile_email');
+        if (profileEmail) {
+            $('btn-submit-signup').disabled = true;
+            client().then(auth => auth.auth.getUser()).then(({ data: { user }, error }) => {
+                if (error || user?.email?.toLowerCase() !== profileEmail.toLowerCase()) return;
+                pendingProfileEmail = user.email;
+                $('su-email').value = user.email;
+                $('btn-submit-signup').textContent = 'Simpan profil';
+                setMessage('signup-status', 'Lengkapi profil akun Anda untuk melanjutkan.');
+            }).catch(error => setMessage('signup-status', error.message, true))
+                .finally(() => { $('btn-submit-signup').disabled = false; });
+        }
         $('btn-submit-signup').onclick = async () => {
             const button = $('btn-submit-signup');
         button.disabled = true;
@@ -534,31 +619,6 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 setMessage('signin-status', 'Memeriksa akun...');
                 
-                const emailVal = $('login-email').value.trim().toLowerCase();
-                
-                // === FITUR AKUN DUMMY (Bypass Instan ke game.html) ===
-                if (emailVal.includes('dummy') || emailVal.includes('pegawai') || emailVal === 'admin' || emailVal.includes('mahasiswa')) {
-                    const isPegawai = emailVal.includes('pegawai') || emailVal === 'admin';
-                    
-                    // Set data dummy global dan ke sessionStorage
-                    currentUser = {
-                        role: isPegawai ? 'pegawai' : 'mahasiswa',
-                        loggedIn: true,
-                        profile: { full_name: 'Dummy User' }
-                    };
-                    sessionStorage.setItem('eq_user', JSON.stringify(currentUser));
-                    sessionStorage.setItem('eq_dummy', 'true');
-                    
-                    setMessage('signin-status', 'Berhasil masuk (Dummy mode). Mengalihkan...');
-                    
-                    // Paksa alihkan ke halaman game setelah 500ms
-                    setTimeout(() => {
-                        window.location.replace('game.html'); // Gunakan replace agar tidak bisa back ke login
-                    }, 500);
-                    return;
-                }
-
-                // === JIKA BUKAN DUMMY, PAKAI SUPABASE ===
                 const auth = await client();
                 const { data: signInData, error } = await auth.auth.signInWithPassword({ 
                     email: $('login-email').value.trim(), 
@@ -572,9 +632,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 await ensureProfile(signedInUser, signInData.session.access_token);
                 pendingProfileEmail = undefined;
                 
-                // Simpan profil yang login ke sessionStorage agar terbaca di game.html
-                sessionStorage.setItem('eq_dummy', 'false');
-                
                 setMessage('signin-status', 'Berhasil masuk. Mengalihkan...');
                 setTimeout(() => {
                     window.location.replace('game.html'); 
@@ -583,7 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 if (error.profileIncomplete) {
                     pendingProfileEmail = signedInUser?.email;
-                    sessionStorage.setItem('pending_email', pendingProfileEmail || '');
+                    sessionStorage.setItem('complete_profile_email', pendingProfileEmail || '');
                     window.location.href = 'signup.html';
                     return;
                 }
@@ -672,6 +729,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (button) openRequest(button.dataset.id);
         });
     }
+    if ($('dashboard-summary-button')) {
+        $('dashboard-summary-button').addEventListener('click', loadDashboardSummary);
+    }
     
     if ($('worker-detail')) {
         $('worker-detail').addEventListener('click', detailAction);
@@ -690,15 +750,24 @@ document.addEventListener('DOMContentLoaded', () => {
 // KONFIGURASI DAN INSTANSIASI GAME PHASER
 // ==========================================
 // Session Restorer & Game Init
-document.addEventListener('DOMContentLoaded', () => {
-    const stored = sessionStorage.getItem('eq_user');
-    if (stored) {
-        try { currentUser = JSON.parse(stored); } catch(e) {}
-    }
-    window.isDummyMode = sessionStorage.getItem('eq_dummy') === 'true';
+document.addEventListener('DOMContentLoaded', async () => {
+    // Hapus sisa sesi lokal dari versi demo; hanya sesi Supabase yang berlaku.
+    sessionStorage.removeItem('eq_user');
+    sessionStorage.removeItem('eq_dummy');
 
-    // Disable UI freeze if already in game
     if (document.getElementById('game-container')) {
+        try {
+            const auth = await client();
+            const { data: { session }, error } = await auth.auth.getSession();
+            if (error || !session?.access_token) throw new Error('Sesi login tidak tersedia.');
+            const { data: { user }, error: userError } = await auth.auth.getUser();
+            if (userError || !user) throw new Error('Sesi login tidak valid.');
+            await ensureProfile(user, session.access_token);
+        } catch (error) {
+            console.error('Gagal memuat sesi:', error);
+            window.location.replace('signin.html');
+            return;
+        }
         isUiActive = false;
         const config = {
             type: Phaser.AUTO,
