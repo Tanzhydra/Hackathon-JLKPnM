@@ -4,7 +4,7 @@ import { statusCounts, type LineState } from '@/lib/status'
 export async function GET(request: Request) {
   try {
     const { db, user } = await context(request)
-    const profile = unwrap(await db.from('profiles').select('id,role,full_name,nrp,class_name,program_code').eq('id', user.id).single())
+    const profile = unwrap(await db.from('profiles').select('id,role,full_name,nrp,class_name,program_code').eq('id', user.id).maybeSingle())
     const attendance = profile.role === 'student'
       ? unwrap(await db.from('attendance').select('id,class_date,course_name,week_no,status').eq('student_id', user.id).eq('status', 'A').order('class_date'))
       : []

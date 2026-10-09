@@ -2,7 +2,11 @@ import { createClient, type SupabaseClient, type User } from '@supabase/supabase
 import { ZodError } from 'zod'
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) { super(message) }
+  public status: number
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+  }
 }
 
 export async function context(request: Request): Promise<{ db: SupabaseClient; user: User }> {
@@ -16,7 +20,14 @@ export async function context(request: Request): Promise<{ db: SupabaseClient; u
     global: { headers: { Authorization: `Bearer ${token}` } },
   })
   const { data, error } = await db.auth.getUser(token)
-  if (error || !data.user) throw new ApiError(401, 'Sesi tidak valid')
+  if (error?.status === 0) {
+    console.error('Supabase auth unreachable', { name: error.name, message: error.message })
+    throw new ApiError(503, 'Layanan autentikasi tidak dapat dihubungi oleh server. Periksa koneksi server ke Supabase.')
+  }
+  if (error || !data.user) {
+    console.error('Supabase session validation failed', { status: error?.status, code: error?.code, message: error?.message })
+    throw new ApiError(401, 'Sesi tidak valid')
+  }
   return { db, user: data.user }
 }
 
