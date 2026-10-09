@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "migrate:review-checks": "node --env-file=../backend/.env.local --env-file=../backend/.env.database.local migrate.mjs",
-    "migrate:scan-flow": "node --env-file=../backend/.env.local --env-file=../backend/.env.database.local migrate-scan.mjs"
+    "migrate:scan-flow": "node --env-file=../backend/.env.local --env-file=../backend/.env.database.local migrate-scan.mjs",
+    "migrate:knowledge": "node --env-file=../backend/.env.local --env-file=../backend/.env.database.local migrate-knowledge.mjs"
   },
   "dependencies": {
     "pg": "^8.0.0"

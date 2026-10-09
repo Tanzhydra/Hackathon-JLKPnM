@@ -180,7 +180,7 @@ async function loadDashboardSummary() {
         if (!snapshot || !result.reply) throw new Error('Ringkasan belum tersedia');
         $('dashboard-summary-time').textContent = `Data diambil: ${new Date(snapshot.snapshot_at).toLocaleString('id-ID')}`;
         $('dashboard-summary-text').textContent = result.reply;
-        setMessage('dashboard-summary-status', snapshot.total ? `Berdasarkan ${snapshot.total} pengajuan non-draf.` : 'Belum ada pengajuan non-draf.');
+        setMessage('dashboard-summary-status', '');
     } catch (error) {
         setMessage('dashboard-summary-status', error.message, true);
     } finally {
@@ -227,7 +227,8 @@ async function sendChatQuestion() {
             }
             $('chat-sources').append(list);
         }
-        setMessage('chat-status', sources.length ? 'Jawaban berdasarkan sumber yang ditampilkan.' : 'Tidak ada sumber resmi yang cukup relevan.');
+        const refused = result.reply === 'Maaf, belum ada sumber resmi yang cukup relevan untuk menjawab pertanyaan ini. Silakan hubungi BAAK langsung.';
+        setMessage('chat-status', sources.length && !refused ? 'Jawaban berdasarkan sumber yang ditampilkan.' : 'Tidak ada sumber resmi yang cukup relevan.');
     } catch (error) {
         setMessage('chat-status', error.message, true);
     } finally {
@@ -323,6 +324,18 @@ function returnGameFocus() {
         const canvas = document.querySelector('#game-container canvas');
         if (canvas) canvas.focus();
     }, 100);
+}
+
+function openChatPanel() {
+    $('chat-panel').classList.remove('hidden');
+    isUiActive = true;
+    $('chat-question').focus();
+}
+
+function closeChatPanel() {
+    $('chat-panel').classList.add('hidden');
+    isUiActive = false;
+    returnGameFocus();
 }
 
 
@@ -542,8 +555,8 @@ class Room1 extends Phaser.Scene {
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     if ($('open-chat-button')) {
-        $('open-chat-button').addEventListener('click', () => $('chat-panel').classList.remove('hidden'));
-        $('close-chat-button').addEventListener('click', () => $('chat-panel').classList.add('hidden'));
+        $('open-chat-button').addEventListener('click', openChatPanel);
+        $('close-chat-button').addEventListener('click', closeChatPanel);
         $('send-chat-button').addEventListener('click', sendChatQuestion);
     }
     if ($('btn-submit-signup')) {
