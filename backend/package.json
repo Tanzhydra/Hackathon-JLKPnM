@@ -1,0 +1,29 @@
+{
+  "name": "form14-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "start": "next start",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-transform-types --test tests/*.test.mjs",
+    "test:integration": "node --env-file=.env.local tests/integration.mjs",
+    "seed:demo": "node --env-file=.env.local scripts/seed-demo.mjs",
+    "seed:existing-demo": "node --env-file=.env.local scripts/seed-existing-demo.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.75.0",
+    "next": "^16.0.0",
+    "pdf-lib": "^1.17.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sharp": "^0.35.5",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.9.0"
+  }
+}
