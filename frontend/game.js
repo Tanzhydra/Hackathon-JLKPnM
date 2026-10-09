@@ -297,19 +297,58 @@ async function detailAction(event) {
 }
 
 // ==========================================
-// FUNGSI NAVIGASI LIFT GLOBAL
+// FUNGSI NAVIGASI LIFT GLOBAL (Versi Bersih & Stabil)
 // ==========================================
+function hideAllInteractionButtons() {
+    ['btn-interact-reception', 'btn-interact-lift', 'btn-interact-worker'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+        }
+    });
+}
+
 function goToRoom1() {
     document.getElementById('lift-ui').classList.add('hidden');
+    hideAllInteractionButtons();
     isUiActive = false;
-    window.game.scene.getScene('LobbyScene').scene.start('Room1');
+    
+    // Ambil scene yang sedang aktif, lalu pindah ke Room1 secara bersih
+    if (window.game && window.game.scene) {
+        const currentScene = window.game.scene.scenes.find(s => s.scene.isActive());
+        if (currentScene) {
+            currentScene.scene.start('Room1');
+        }
+    }
+    returnGameFocus();
+}
+
+function goToRoom2() {
+    document.getElementById('lift-ui').classList.add('hidden');
+    hideAllInteractionButtons();
+    isUiActive = false;
+    
+    if (window.game && window.game.scene) {
+        const currentScene = window.game.scene.scenes.find(s => s.scene.isActive());
+        if (currentScene) {
+            currentScene.scene.start('Room2');
+        }
+    }
     returnGameFocus();
 }
 
 function goToLobby() {
     document.getElementById('lift-ui').classList.add('hidden');
+    hideAllInteractionButtons();
     isUiActive = false;
-    alert("Anda sudah berada di Lantai 1 (Lobi Utama).");
+    
+    if (window.game && window.game.scene) {
+        const currentScene = window.game.scene.scenes.find(s => s.scene.isActive());
+        if (currentScene) {
+            currentScene.scene.start('LobbyScene');
+        }
+    }
     returnGameFocus();
 }
 
@@ -438,17 +477,38 @@ class LobbyScene extends Phaser.Scene {
 
         const btnReception = document.getElementById('btn-interact-reception');
         const btnLift = document.getElementById('btn-interact-lift');
+        const btnWorker = document.getElementById('btn-interact-worker');
 
-        if (currentUser.role === 'mahasiswa' && this.physics.overlap(this.player, this.receptionZone)) {
-            btnReception.classList.remove('hidden');
-        } else {
-            btnReception.classList.add('hidden');
+        // Pastikan tombol dashboard verifikasi dimatikan di Lobi
+        if (btnWorker) {
+            btnWorker.classList.add('hidden');
+            btnWorker.style.display = 'none';
         }
 
-        if (currentUser.role === 'pegawai' && this.physics.overlap(this.player, this.liftZone)) {
-            btnLift.classList.remove('hidden');
+        // 1. Cek Resepsionis (Hanya untuk Mahasiswa)
+        if (currentUser.role === 'mahasiswa' && this.physics.overlap(this.player, this.receptionZone)) {
+            if (btnReception) {
+                btnReception.classList.remove('hidden');
+                btnReception.style.display = 'flex';
+            }
         } else {
-            btnLift.classList.add('hidden');
+            if (btnReception) {
+                btnReception.classList.add('hidden');
+                btnReception.style.display = 'none';
+            }
+        }
+
+        // 2. Cek Zona Lift di Lobi (Untuk semua role agar bisa naik ke Room 1 / Room 2)
+        if (this.physics.overlap(this.player, this.liftZone)) {
+            if (btnLift) {
+                btnLift.classList.remove('hidden');
+                btnLift.style.display = 'flex';
+            }
+        } else {
+            if (btnLift && document.getElementById('lift-ui').classList.contains('hidden')) {
+                btnLift.classList.add('hidden');
+                btnLift.style.display = 'none';
+            }
         }
     }
 }
@@ -474,6 +534,7 @@ class Room1 extends Phaser.Scene {
         this.bg = this.add.image(offsetX, offsetY, 'room1-bg');
         this.bg.setOrigin(0, 0);
         this.bg.setScale(scaleFactor);
+        
 
         const collisionObjects = map.getObjectLayer('Collision 2');
         this.obstacles = this.physics.add.staticGroup();
@@ -494,7 +555,7 @@ class Room1 extends Phaser.Scene {
         this.player.setScale(0.12 * scaleFactor); 
         
         const sW = this.player.width, sH = this.player.height;
-        this.player.body.setSize(sW * 0.4, sH * 0.15);
+        this.player.body.setSize(sW * 0.05, sH * 0.05);
         this.player.body.setOffset((sW - sW * 0.4) / 2, sH - (sH * 0.15) - 10);
         this.player.body.setCollideWorldBounds(true);
         this.physics.add.collider(this.player, this.obstacles);
@@ -515,6 +576,14 @@ class Room1 extends Phaser.Scene {
             left: Phaser.Input.Keyboard.KeyCodes.A,
             right: Phaser.Input.Keyboard.KeyCodes.D
         }, false);
+        // Zona lift untuk memanggil lift kembali di Room 1
+        this.liftZoneRoom1 = this.add.zone(offsetX + (200 * scaleFactor), offsetY + (200 * scaleFactor), 150, 150); // SESUAIKAN KOORDINAT INI dengan posisi pintu lift di gambar room1.png
+        this.physics.add.existing(this.liftZoneRoom1, true);
+
+        // ZONA PINTU KELUAR KE LIFT (Kanan Bawah)
+        // Silakan sesuaikan koordinat X (850) dan Y (800) agar pas dengan gambar pintu
+        this.liftReturnZone1 = this.add.zone(offsetX + (1250 * scaleFactor), offsetY + (800 * scaleFactor), 120, 120);
+        this.physics.add.existing(this.liftReturnZone1, true);
     }
 
     update() {
@@ -540,15 +609,150 @@ class Room1 extends Phaser.Scene {
             this.player.setTexture('player-depan');
         }
 
+        // Logika memunculkan tombol Buka Dashboard Pegawai
         const btnWorker = document.getElementById('btn-interact-worker');
+        // Pengecekan Meja Komputer di Room 1 (Dibuat fleksibel agar tombol pasti muncul di dekat meja)
         if (this.physics.overlap(this.player, this.deskZone)) {
-            btnWorker.classList.remove('hidden');
+            if (btnWorker) {
+                btnWorker.classList.remove('hidden');
+                btnWorker.style.display = 'flex';
+            }
         } else {
-            btnWorker.classList.add('hidden');
+            if (btnWorker && document.getElementById('worker-ui').classList.contains('hidden')) {
+                btnWorker.classList.add('hidden');
+                btnWorker.style.display = 'none';
+            }
         }
+
+        const btnLift = document.getElementById('btn-interact-lift');
+        
+        // Cek apakah player menyentuh zona lift kembali
+        if (this.physics.overlap(this.player, this.liftReturnZone1)) {
+            if (btnLift) {
+                btnLift.classList.remove('hidden');
+                btnLift.style.display = 'flex';
+            }
+        } else {
+            // Sembunyikan jika menjauh dan panel lift sedang ditutup
+            if (btnLift && document.getElementById('lift-ui').classList.contains('hidden')) {
+                btnLift.classList.add('hidden');
+                btnLift.style.display = 'none';
+            }
+        }
+        
     }
 }
 
+// ==========================================
+// SCENE ROOM 2 (Lantai 1 - Area Mahasiswa)
+// ==========================================
+class Room2 extends Phaser.Scene {
+    constructor() { super('Room2'); }
+
+    preload() {
+        this.load.image('room2-bg', 'assets/room 2.png');
+        this.load.tilemapTiledJSON('room2-map', 'assets/room 2.tmj');
+    }
+
+    create() {
+        const map = this.make.tilemap({ key: 'room2-map' });
+        const scaleFactor = 0.6; 
+        const offsetX = (1280 - (1536 * scaleFactor)) / 2;
+        const offsetY = (720 - (1024 * scaleFactor)) / 2;
+
+        this.bg = this.add.image(offsetX, offsetY, 'room2-bg');
+        this.bg.setOrigin(0, 0);
+        this.bg.setScale(scaleFactor);
+
+        // Collision / Dinding (pastikan nama layer Tiled sesuai, misal: 'Collusion' atau 'collusion')
+        const collisionObjects = map.getObjectLayer('Collision 3'); 
+        this.obstacles = this.physics.add.staticGroup();
+        if (collisionObjects) {
+            collisionObjects.objects.forEach(object => {
+                const objX = offsetX + (object.x * scaleFactor);
+                const objY = offsetY + (object.y * scaleFactor);
+                const objW = object.width * scaleFactor;
+                const objH = object.height * scaleFactor;
+                const obstacle = this.add.rectangle(objX, objY, objW, objH, 0xff0000, 0);
+                obstacle.setOrigin(0, 0);
+                this.physics.add.existing(obstacle, true);
+                this.obstacles.add(obstacle);
+            });
+        }
+
+        // Posisi spawn karakter saat masuk Room 2 (di dekat pintu masuk kanan bawah)
+        this.player = this.physics.add.sprite(offsetX + (1100 * scaleFactor), offsetY + (650 * scaleFactor), 'player-belakang');
+        this.player.setScale(0.12 * scaleFactor); 
+        
+        const sW = this.player.width, sH = this.player.height;
+        this.player.body.setSize(sW * 0.4, sH * 0.15);
+        this.player.body.setOffset((sW - sW * 0.4) / 2, sH - (sH * 0.15) - 10);
+        this.player.body.setCollideWorldBounds(true);
+        this.physics.add.collider(this.player, this.obstacles);
+
+        // ZONA PINTU LIFT KELUAR ROOM 2 (Digeser pas menutupi area pintu kaca kanan bawah)
+        this.liftReturnZone2 = this.add.zone(offsetX + (1120 * scaleFactor), offsetY + (800 * scaleFactor), 120, 120);
+        this.physics.add.existing(this.liftReturnZone2, true);
+
+        this.cursors = this.input.keyboard.addKeys({
+            up: Phaser.Input.Keyboard.KeyCodes.UP,
+            down: Phaser.Input.Keyboard.KeyCodes.DOWN,
+            left: Phaser.Input.Keyboard.KeyCodes.LEFT,
+            right: Phaser.Input.Keyboard.KeyCodes.RIGHT
+        }, false);
+        this.wasd = this.input.keyboard.addKeys({
+            up: Phaser.Input.Keyboard.KeyCodes.W,
+            down: Phaser.Input.Keyboard.KeyCodes.S,
+            left: Phaser.Input.Keyboard.KeyCodes.A,
+            right: Phaser.Input.Keyboard.KeyCodes.D
+        }, false);
+    }
+
+    update() {
+        if (isUiActive) {
+            if (this.player && this.player.body) this.player.body.setVelocity(0);
+            return;
+        }
+
+        const speed = 250;
+        this.player.body.setVelocity(0);
+
+        if (this.cursors.left.isDown || this.wasd.left.isDown) {
+            this.player.body.setVelocityX(-speed);
+            this.player.setTexture('player-kiri');
+        } else if (this.cursors.right.isDown || this.wasd.right.isDown) {
+            this.player.body.setVelocityX(speed);
+            this.player.setTexture('player-kanan');
+        } else if (this.cursors.up.isDown || this.wasd.up.isDown) {
+            this.player.body.setVelocityY(-speed);
+            this.player.setTexture('player-belakang');
+        } else if (this.cursors.down.isDown || this.wasd.down.isDown) {
+            this.player.body.setVelocityY(speed);
+            this.player.setTexture('player-depan');
+        }
+const btnLift = document.getElementById('btn-interact-lift');
+        const btnWorker = document.getElementById('btn-interact-worker');
+        
+        // Pastikan tombol verifikasi mutlak mati di Room 2
+        if (btnWorker) {
+            btnWorker.classList.add('hidden');
+            btnWorker.style.display = 'none';
+        }
+
+        // Cek apakah player menyentuh zona lift kembali
+        if (this.physics.overlap(this.player, this.liftReturnZone2)) {
+            if (btnLift) {
+                btnLift.classList.remove('hidden');
+                btnLift.style.display = 'flex';
+            }
+        } else {
+            if (btnLift && document.getElementById('lift-ui').classList.contains('hidden')) {
+                btnLift.classList.add('hidden');
+                btnLift.style.display = 'none';
+            }
+        }
+    }
+}
 
 // ==========================================
 // 3. EVENT LISTENER UNTUK HTML FORM
@@ -789,9 +993,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             parent: 'game-container',
             physics: {
                 default: 'arcade',
-                arcade: { gravity: { y: 0 }, debug: false }
+                arcade: { gravity: { y: 0 }, debug: true }
             },
-            scene: [LobbyScene, Room1]
+            scene: [LobbyScene, Room1, Room2]
         };
         window.game = new Phaser.Game(config);
     }
