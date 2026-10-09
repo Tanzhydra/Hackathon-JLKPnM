@@ -1,0 +1,280 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduQuest - BAAK PENS</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+    <!-- Phaser 3 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.js"></script>
+</head>
+<body class="bg-[#0b0f19] flex justify-center items-center h-screen m-0 overflow-hidden font-['Poppins',sans-serif]">
+
+    <!-- BUNGKUS UTAMA (Background web dipasang di sini) -->
+    <div id="main-wrapper" class="relative w-[1280px] h-[720px] shadow-2xl overflow-hidden bg-cover bg-center transition-all duration-500" style="background-image: url('assets/Background_web.png');">
+        
+        <!-- KANVAS GAME PHASER -->
+        <div id="game-container" class="absolute inset-0 w-full h-full hidden bg-black"></div>
+
+        <!-- LAPISAN UI HTML (Menumpuk di Atas Game) -->
+        <div id="ui-layer" class="absolute top-0 left-0 w-full h-full z-[1000] pointer-events-none flex justify-center items-center">
+            
+            <!-- 1. OPENING SCREEN -->
+            <div id="opening-screen" class="ui-screen pointer-events-auto absolute inset-0 flex flex-col justify-center items-center bg-black/5 backdrop-blur-[2px]">
+                <div class="bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center max-w-md border border-white/50">
+                    <h1 class="text-2xl font-bold text-slate-800 mb-2">EduQuest</h1>
+                    <p class="text-slate-600 mb-6 text-sm">Sistem Layanan Presensi & Koreksi Otomatis Kampus</p>
+                    <button onclick="goToSignin()" class="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold shadow-md hover:bg-blue-700 transition">Mulai Masuk</button>
+                </div>
+            </div>
+
+            <!-- 2. SIGN IN SCREEN -->
+            <div id="signin-screen" class="ui-screen pointer-events-auto absolute inset-0 flex flex-col justify-center items-center bg-black/5 backdrop-blur-[2px] hidden">
+                <div class="relative w-[450px] bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl border border-blue-100 text-left">
+                    <div class="flex gap-2 mb-6 bg-slate-100 p-1 rounded-xl w-fit">
+                        <button class="px-4 py-1.5 rounded-lg bg-slate-900 text-white font-medium text-sm">Sign In</button>
+                        <button onclick="switchToSignup()" class="px-4 py-1.5 rounded-lg text-slate-600 font-medium text-sm hover:bg-slate-200 transition">Sign Up</button>
+                    </div>
+
+                    <h2 class="text-xl font-bold text-slate-800 mb-1">Sign In to Your Account</h2>
+                    <p class="text-xs text-slate-500 mb-6">Masuk dengan akun Supabase Anda.</p>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Email</label>
+                            <input type="email" id="login-email" placeholder="email@domain.com" class="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Password</label>
+                            <input type="password" id="login-password" class="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 mt-6">
+                        <button id="btn-submit-signin" class="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition shadow-md">Masuk ke Game</button>
+                        <button id="btn-resend-confirmation" class="w-full py-2.5 rounded-xl border border-blue-300 text-blue-700 font-semibold text-xs hover:bg-blue-50 transition">Kirim Ulang Email Konfirmasi</button>
+                        <button onclick="switchToSignup()" class="w-full py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-xs hover:bg-slate-50 transition">Belum Punya Akun? Sign Up</button>
+                    </div>
+                    <p id="signin-status" role="status" class="text-xs text-slate-700 mt-4"></p>
+                </div>
+            </div>
+
+            <!-- 3. SIGN UP SCREEN -->
+            <div id="signup-screen" class="ui-screen pointer-events-auto absolute inset-0 flex flex-col justify-center items-center bg-black/5 backdrop-blur-[2px] hidden">
+                <div class="relative w-[450px] bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl border border-blue-100 text-left">
+                    <div class="flex gap-2 mb-6 bg-slate-100 p-1 rounded-xl w-fit">
+                        <button onclick="switchToSignin()" class="px-4 py-1.5 rounded-lg text-slate-600 font-medium text-sm hover:bg-slate-200 transition">Sign In</button>
+                        <button class="px-4 py-1.5 rounded-lg bg-slate-900 text-white font-medium text-sm">Sign Up</button>
+                    </div>
+
+                    <h2 class="text-xl font-bold text-slate-800 mb-1">Create New Account</h2>
+                    <p class="text-xs text-slate-500 mb-6">Daftar akun baru untuk mengakses layanan.</p>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <input type="text" id="su-nama" placeholder="Nama lengkap..." class="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <input type="text" id="su-id" placeholder="NRP atau NIP..." class="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <input type="text" id="su-class" placeholder="Kelas sesuai Form 14..." class="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <input type="text" id="su-program" placeholder="Kode program studi..." class="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <input type="email" id="su-email" placeholder="email@domain.com..." class="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <input type="password" id="su-pass" placeholder="Password (ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó)" class="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 mt-6">
+                        <button id="btn-submit-signup" class="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition shadow-md">Daftar</button>
+                        <button onclick="switchToSignin()" class="w-full py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-xs hover:bg-slate-50 transition">Sudah Punya Akun? Sign In</button>
+                    </div>
+                    <p id="signup-status" role="status" class="text-xs text-slate-700 mt-4"></p>
+                </div>
+            </div>
+
+            <!-- TOMBOL INTERAKSI MOUSE -->
+            <div id="btn-interact-reception" class="absolute bottom-10 flex justify-center w-full pointer-events-auto hidden">
+                <button onclick="openReceptionistUI()" class="px-6 py-3 bg-blue-600/95 hover:bg-blue-500 text-white font-bold rounded-2xl shadow-[0_10px_25px_rgba(37,99,235,0.5)] border border-blue-400 transition-transform transform hover:-translate-y-1">
+                    ≡ƒôï Klik untuk Buka Layanan BAAK
+                </button>
+            </div>
+
+            <div id="btn-interact-lift" class="absolute bottom-12 flex justify-center w-full pointer-events-auto hidden">
+                <button onclick="openLiftUI()" class="w-16 h-16 bg-yellow-400 hover:bg-yellow-300 text-slate-900 text-2xl font-bold rounded-full shadow-[0_0_30px_rgba(250,204,21,0.8)] border-4 border-white animate-pulse transition hover:scale-110">
+                    Γ¼å∩╕Å
+                </button>
+            </div>
+
+            <div id="btn-interact-worker" class="absolute bottom-10 flex justify-center w-full pointer-events-auto hidden">
+                <button onclick="openWorkerUI()" class="px-6 py-3 bg-emerald-600/95 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-[0_10px_25px_rgba(5,150,105,0.5)] border border-emerald-400 transition-transform transform hover:-translate-y-1">
+                    ≡ƒÆ╗ Buka Dashboard Verifikasi
+                </button>
+            </div>
+
+            <!-- MODAL UI GAMEPLAY -->
+            <div id="receptionist-ui" class="ui-screen pointer-events-auto absolute inset-0 flex justify-center items-center bg-black/60 backdrop-blur-sm hidden">
+                <div class="bg-white w-[600px] p-8 rounded-2xl shadow-2xl text-left transform transition-all">
+                    <h2 class="text-xl font-bold text-slate-800 mb-1">Form Pengajuan Dokumen (Mahasiswa)</h2>
+                    <p class="text-xs text-slate-500 mb-5">Unggah scan Form 14 untuk dibaca oleh sistem.</p>
+                    
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Scan Form 14:</label>
+                    <input type="file" id="file-form14" accept=".pdf,.jpg,.jpeg,.png" class="w-full p-2.5 border border-slate-300 rounded-xl bg-slate-50 text-sm mb-4 cursor-pointer">
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Surat dokter (bila ada baris sakit):</label>
+                    <input type="file" id="file-doctor" accept=".pdf,.jpg,.jpeg,.png" class="w-full p-2.5 border border-slate-300 rounded-xl bg-slate-50 text-sm mb-4 cursor-pointer">
+                    
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Keterangan / Alasan:</label>
+                    <textarea id="submission-note" rows="3" placeholder="Catatan tambahan (opsional, tidak dipakai oleh pemeriksaan scan)" class="w-full p-3 border border-slate-300 rounded-xl bg-slate-50 text-sm mb-5 outline-none"></textarea>
+                    <p id="student-status" role="status" class="text-sm text-slate-700 mb-3"></p>
+                    <div id="scan-result" class="text-xs text-slate-700 max-h-20 overflow-y-auto mb-2"></div>
+                    <div id="student-requests" class="text-xs text-slate-700 max-h-24 overflow-y-auto mb-4"></div>
+
+                    <div class="flex justify-end gap-3">
+                        <button id="btn-close-receptionist" class="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-300 transition">Tutup</button>
+                        <button id="btn-upload-submit" class="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition shadow-md">Baca scan</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel Lift -->
+            <div id="lift-ui" class="ui-screen pointer-events-auto absolute inset-0 flex justify-center items-center bg-black/70 backdrop-blur-sm hidden">
+                <div class="relative w-[500px] h-[500px] bg-center bg-no-repeat bg-contain" style="background-image: url('assets/lift_interior.png'); filter: drop-shadow(0 25px 25px rgba(0,0,0,0.5));">
+                    <div class="absolute right-[21%] top-[40%] flex flex-col gap-[6px] w-[30px]">
+                        <button onclick="goToRoom1()" class="h-[42px] w-full rounded-lg bg-blue-500/30 hover:bg-white/60 active:bg-white/80 transition cursor-pointer border border-blue-400/50" title="Lantai 2 - Room1"></button>
+                        <button onclick="goToLobby()" class="h-[42px] w-full rounded-lg bg-blue-500/30 hover:bg-white/60 active:bg-white/80 transition cursor-pointer border border-blue-400/50" title="Lantai 1 - Lobi"></button>
+                        <button onclick="closeLift()" class="h-[42px] w-full rounded-lg bg-red-500/30 hover:bg-red-400/60 transition cursor-pointer mt-1 border border-red-400/50" title="Tutup Pintu Lift"></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Verifikasi Baru (Sesuai Desain Anda) -->
+            <div id="worker-ui" class="ui-screen pointer-events-auto absolute inset-0 flex justify-center items-center bg-black/40 backdrop-blur-sm hidden">
+                <div class="relative w-[1100px] h-[650px] bg-white overflow-hidden rounded-[20px] shadow-2xl p-8 flex flex-col justify-start">
+                    
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="flex items-center gap-4">
+                            <div>
+                                <h2 class="text-black text-[22px] font-semibold font-['Poppins']">Dashboard</h2>
+                                <p class="text-black text-[15px] font-normal font-['Poppins']">Ringkasan pengajuan Akademik</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <!-- TOMBOL LOGOUT DI HEADER DASHBOARD -->
+                            <button onclick="openLogoutModal()" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 text-red-600 font-semibold text-sm hover:bg-red-100 transition cursor-pointer">
+                                ≡ƒÜ¬ Keluar / Logout
+                            </button>
+                            <button onclick="closeWorkerUI()" class="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-300 transition cursor-pointer">Tutup Komputer</button>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 mb-8">
+                        <div class="w-[190px] h-[120px] bg-[#ffffff] border border-[#8fbef0] rounded-[20px] p-4 flex flex-col justify-between shadow-sm">
+                            <span class="text-[#195faa] text-sm font-semibold">Total Pengajuan</span>
+                            <span id="count-total" class="text-[#195faa] text-2xl font-semibold">ΓÇö</span>
+                        </div>
+                        <div class="w-[190px] h-[120px] bg-[#ffffff] border border-[#38c13f]/30 rounded-[20px] p-4 flex flex-col justify-between shadow-sm">
+                            <span class="text-[#38c13f] text-sm font-semibold">Siap Validasi</span>
+                            <span id="count-ready" class="text-[#38c13f] text-2xl font-semibold">ΓÇö</span>
+                        </div>
+                        <div class="w-[190px] h-[120px] bg-[#ffffff] border border-[#e9bb50]/30 rounded-[20px] p-4 flex flex-col justify-between shadow-sm">
+                            <span class="text-[#e9bb50] text-sm font-semibold">Menunggu</span>
+                            <span id="count-waiting" class="text-[#e9bb50] text-2xl font-semibold">ΓÇö</span>
+                        </div>
+                        <div class="w-[190px] h-[120px] bg-[#ffffff] border border-[#c72929]/30 rounded-[20px] p-4 flex flex-col justify-between shadow-sm">
+                            <span class="text-[#c72929] text-sm font-semibold">Ditolak</span>
+                            <span id="count-rejected" class="text-[#c72929] text-2xl font-semibold">ΓÇö</span>
+                        </div>
+                    </div>
+
+                    <div class="w-full bg-white border border-[#8fbef0] rounded-[20px] p-6 overflow-y-auto max-h-[300px]">
+                        <h3 class="text-black text-[18px] font-medium font-['Poppins'] mb-4">Pengajuan Terbaru</h3>
+                        
+                        <div class="grid grid-cols-6 text-black text-[15px] font-semibold mb-3 px-2">
+                            <span>ID</span>
+                            <span>Mahasiswa</span>
+                            <span>Jenis</span>
+                            <span>Tanggal</span>
+                            <span>Status</span>
+                            <span>Aksi</span>
+                        </div>
+                        <hr class="border-black/20 mb-3">
+
+                        <div id="worker-requests" class="text-sm text-slate-600">Memuat pengajuan...</div>
+                    </div>
+                    <p id="worker-status" role="status" class="text-sm text-slate-700 mt-3"></p>
+                    <div id="worker-detail" class="hidden absolute inset-4 bg-white rounded-xl border shadow-xl p-5 overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- MODAL KONFIRMASI LOGOUT -->
+            <div id="logout-modal" class="ui-screen pointer-events-auto absolute inset-0 flex justify-center items-center bg-black/50 backdrop-blur-sm hidden z-[1100]">
+                <div class="relative w-[500px] bg-white rounded-[30px] shadow-2xl p-8 flex flex-col items-center text-center">
+                    <div class="w-[80px] h-[80px] rounded-full bg-[rgba(143,190,240,0.3)] flex items-center justify-center mb-4">
+                        <span class="text-3xl">ΓÜá∩╕Å</span>
+                    </div>
+                    <h3 class="text-[#195faa] text-[22px] font-bold font-['Poppins'] mb-2">Keluar dari aplikasi ini?</h3>
+                    <p class="text-black text-[13px] font-normal font-['Poppins'] mb-6">
+                        Anda akan mengakhiri sesi dan keluar dari akun Staf BAAK, pastikan semua pekerjaan anda telah disimpan.
+                    </p>
+                    <div class="flex gap-4 w-full">
+                        <button onclick="closeLogoutModal()" class="flex-1 py-3 rounded-xl bg-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-300 transition cursor-pointer">Batal</button>
+                        <button onclick="executeLogout()" class="flex-1 py-3 rounded-xl bg-red-600 text-white font-semibold text-sm hover:bg-red-700 transition shadow-md cursor-pointer">Ya, Keluar</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Script Transisi Menu Awal -->
+    <script>
+        function goToSignin() {
+            document.getElementById('opening-screen').classList.add('hidden');
+            document.getElementById('signin-screen').classList.remove('hidden');
+        }
+        function switchToSignin() {
+            document.getElementById('signup-screen').classList.add('hidden');
+            document.getElementById('signin-screen').classList.remove('hidden');
+        }
+        function switchToSignup() {
+            document.getElementById('signin-screen').classList.add('hidden');
+            document.getElementById('signup-screen').classList.remove('hidden');
+        }
+
+        function openReceptionistUI() {
+            if (currentUser.role !== 'mahasiswa') return;
+            isUiActive = true;
+            document.getElementById('btn-interact-reception').classList.add('hidden');
+            document.getElementById('receptionist-ui').classList.remove('hidden');
+            refreshBootstrap().catch(error => setMessage('student-status', error.message, true));
+        }
+        function openLiftUI() {
+            isUiActive = true;
+            document.getElementById('btn-interact-lift').classList.add('hidden');
+            document.getElementById('lift-ui').classList.remove('hidden');
+        }
+        function openWorkerUI() {
+            if (currentUser.role !== 'pegawai') return;
+            isUiActive = true;
+            document.getElementById('btn-interact-worker').classList.add('hidden');
+            document.getElementById('worker-ui').classList.remove('hidden');
+            loadDashboard();
+        }
+        function closeWorkerUI() {
+            document.getElementById('worker-ui').classList.add('hidden');
+            isUiActive = false;
+            returnGameFocus();
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>

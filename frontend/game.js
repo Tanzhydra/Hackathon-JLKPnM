@@ -64,6 +64,14 @@ function setMessage(id, message, failed = false) {
 }
 
 async function refreshBootstrap(accessToken) {
+    if (window.isDummyMode) {
+        bootstrapData = { 
+            profile: { role: currentUser.role === 'pegawai' ? 'officer' : 'student', full_name: 'Dummy User' }, 
+            requests: [] 
+        };
+        renderStudentRequests();
+        return bootstrapData;
+    }
     bootstrapData = await api('/api/bootstrap', accessToken ? { accessToken } : {});
     const role = bootstrapData.profile.role;
     if (role !== 'student' && role !== 'officer') throw new Error('Peran akun tidak dikenal');
@@ -322,7 +330,7 @@ class LobbyScene extends Phaser.Scene {
             right: Phaser.Input.Keyboard.KeyCodes.D
         }, false);
         
-        initHtmlUiEvents(this);
+        // initHtmlUiEvents(this); dipanggil lewat DOMContentLoaded
     }
 
     update() {
@@ -465,9 +473,10 @@ class Room1 extends Phaser.Scene {
 // ==========================================
 // 3. EVENT LISTENER UNTUK HTML FORM
 // ==========================================
-function initHtmlUiEvents(sceneInstance) {
-    $('btn-submit-signup').onclick = async () => {
-        const button = $('btn-submit-signup');
+document.addEventListener('DOMContentLoaded', () => {
+    if ($('btn-submit-signup')) {
+        $('btn-submit-signup').onclick = async () => {
+            const button = $('btn-submit-signup');
         button.disabled = true;
         try {
             setMessage('signup-status', '');
@@ -485,9 +494,9 @@ function initHtmlUiEvents(sceneInstance) {
                 await api('/api/profile', { method: 'POST', body: JSON.stringify({ full_name, nrp, class_name, program_code }) });
                 pendingProfileEmail = undefined;
                 button.textContent = 'Daftar';
-                $('login-email').value = email;
-                switchToSignin();
-                setMessage('signin-status', 'Profil tersimpan. Masuk kembali dengan password akun Anda.');
+                // Store email in sessionStorage to pass it to signin.html
+                sessionStorage.setItem('pending_email', email);
+                window.location.href = 'signin.html';
                 return;
             }
             if (password.length < 6) throw new Error('Password minimal 6 karakter.');
@@ -497,68 +506,102 @@ function initHtmlUiEvents(sceneInstance) {
                 try {
                     await api('/api/profile', { method: 'POST', body: JSON.stringify({ full_name, nrp, class_name, program_code }), accessToken: data.session.access_token });
                 } catch (profileError) {
-                    $('login-email').value = email;
-                    switchToSignin();
-                    setMessage('signin-status', `Akun sudah dibuat, tetapi profil belum tersimpan: ${profileError.message}. Coba masuk untuk melengkapi profil.`, true);
+                    sessionStorage.setItem('pending_email', email);
+                    window.location.href = 'signin.html';
                     return;
                 }
             }
-            $('login-email').value = email;
-            switchToSignin();
-            setMessage('signin-status', data.session
-                ? 'Akun dibuat. Masukkan password untuk masuk.'
-                : 'Jika pendaftaran baru berhasil, buka tautan konfirmasi yang dikirim ke email Anda, lalu masuk. Periksa folder spam juga.');
+            sessionStorage.setItem('pending_email', email);
+            window.location.href = 'signin.html';
         } catch (error) { setMessage('signup-status', `${pendingProfileEmail ? 'Penyimpanan profil' : 'Pendaftaran'} gagal: ${error.message}`, true); }
         finally { button.disabled = false; }
-    };
+        };
+    }
 
-    $('btn-submit-signin').onclick = async () => {
-        const button = $('btn-submit-signin');
-        button.disabled = true;
-        let signedInUser;
-        try {
-            setMessage('signin-status', 'Memeriksa akun...');
-            const auth = await client();
-            const { data: signInData, error } = await auth.auth.signInWithPassword({ email: $('login-email').value.trim(), password: $('login-password').value });
-            if (error) throw error;
-            if (!signInData.session?.access_token || !signInData.user) throw new Error('Sesi login tidak tersedia. Silakan coba masuk kembali.');
-            signedInUser = signInData.user;
-            await ensureProfile(signedInUser, signInData.session.access_token);
-            pendingProfileEmail = undefined;
-            setMessage('signin-status', '');
-            isUiActive = false;
-            $('signin-screen').classList.add('hidden');
-            const wrapper = $('main-wrapper');
-            wrapper.style.backgroundImage = 'none';
-            wrapper.style.backgroundColor = '#0b0f19';
-            $('game-container').classList.remove('hidden');
-            returnGameFocus();
-        } catch (error) {
-            if (error.profileIncomplete) {
-                pendingProfileEmail = signedInUser?.email;
-                const meta = signedInUser?.user_metadata || {};
-                $('su-nama').value = meta.full_name || '';
-                $('su-id').value = meta.nrp || '';
-                $('su-class').value = meta.class_name || '';
-                $('su-program').value = meta.program_code || '';
-                $('su-email').value = pendingProfileEmail || '';
-                switchToSignup();
-                setMessage('signup-status', 'Akun sudah dibuat, tetapi profil belum lengkap. Perbaiki isian yang kurang lalu pilih Lengkapi Profil.', true);
-                $('btn-submit-signup').textContent = 'Lengkapi Profil';
-                return;
-            }
-            const message = error.code === 'email_not_confirmed'
-                ? 'Email belum dikonfirmasi. Buka tautan di email Anda atau pilih Kirim Ulang Email Konfirmasi.'
-                : error.code === 'invalid_credentials'
-                    ? 'Email atau password tidak cocok. Periksa kembali keduanya. Jika baru mendaftar, konfirmasi email terlebih dahulu; jika email sudah pernah dipakai, gunakan password akun sebelumnya.'
-                    : `Gagal masuk: ${error.message}`;
-            setMessage('signin-status', message, true);
+    if ($('btn-submit-signin')) {
+        // Auto fill email if redirected from signup
+        const pending = sessionStorage.getItem('pending_email');
+        if (pending) {
+            $('login-email').value = pending;
+            sessionStorage.removeItem('pending_email');
+            setMessage('signin-status', 'Silakan masuk / lengkapi profil Anda.');
         }
-        finally { button.disabled = false; }
-    };
 
-    $('btn-resend-confirmation').onclick = async () => {
-        const button = $('btn-resend-confirmation');
+        $('btn-submit-signin').onclick = async () => {
+            const button = $('btn-submit-signin');
+            button.disabled = true;
+            let signedInUser;
+            try {
+                setMessage('signin-status', 'Memeriksa akun...');
+                
+                const emailVal = $('login-email').value.trim().toLowerCase();
+                
+                // === FITUR AKUN DUMMY (Bypass Instan ke game.html) ===
+                if (emailVal.includes('dummy') || emailVal.includes('pegawai') || emailVal === 'admin' || emailVal.includes('mahasiswa')) {
+                    const isPegawai = emailVal.includes('pegawai') || emailVal === 'admin';
+                    
+                    // Set data dummy global dan ke sessionStorage
+                    currentUser = {
+                        role: isPegawai ? 'pegawai' : 'mahasiswa',
+                        loggedIn: true,
+                        profile: { full_name: 'Dummy User' }
+                    };
+                    sessionStorage.setItem('eq_user', JSON.stringify(currentUser));
+                    sessionStorage.setItem('eq_dummy', 'true');
+                    
+                    setMessage('signin-status', 'Berhasil masuk (Dummy mode). Mengalihkan...');
+                    
+                    // Paksa alihkan ke halaman game setelah 500ms
+                    setTimeout(() => {
+                        window.location.replace('game.html'); // Gunakan replace agar tidak bisa back ke login
+                    }, 500);
+                    return;
+                }
+
+                // === JIKA BUKAN DUMMY, PAKAI SUPABASE ===
+                const auth = await client();
+                const { data: signInData, error } = await auth.auth.signInWithPassword({ 
+                    email: $('login-email').value.trim(), 
+                    password: $('login-password').value 
+                });
+                
+                if (error) throw error;
+                if (!signInData.session?.access_token || !signInData.user) throw new Error('Sesi login tidak tersedia. Silakan coba masuk kembali.');
+                
+                signedInUser = signInData.user;
+                await ensureProfile(signedInUser, signInData.session.access_token);
+                pendingProfileEmail = undefined;
+                
+                // Simpan profil yang login ke sessionStorage agar terbaca di game.html
+                sessionStorage.setItem('eq_dummy', 'false');
+                
+                setMessage('signin-status', 'Berhasil masuk. Mengalihkan...');
+                setTimeout(() => {
+                    window.location.replace('game.html'); 
+                }, 500);
+                
+            } catch (error) {
+                if (error.profileIncomplete) {
+                    pendingProfileEmail = signedInUser?.email;
+                    sessionStorage.setItem('pending_email', pendingProfileEmail || '');
+                    window.location.href = 'signup.html';
+                    return;
+                }
+                const message = error.code === 'email_not_confirmed'
+                    ? 'Email belum dikonfirmasi. Periksa kotak masuk/spam Anda.'
+                    : error.code === 'invalid_credentials'
+                        ? 'Email atau password salah.'
+                        : `Gagal masuk: ${error.message}`;
+                setMessage('signin-status', message, true);
+            } finally { 
+                button.disabled = false; 
+            }
+        };
+    }
+
+    if ($('btn-resend-confirmation')) {
+        $('btn-resend-confirmation').onclick = async () => {
+            const button = $('btn-resend-confirmation');
         const email = $('login-email').value.trim();
         if (!email) { setMessage('signin-status', 'Isi email terlebih dahulu untuk mengirim ulang konfirmasi.', true); return; }
         button.disabled = true;
@@ -569,10 +612,12 @@ function initHtmlUiEvents(sceneInstance) {
             setMessage('signin-status', 'Jika akun menunggu konfirmasi, email baru telah dikirim. Periksa kotak masuk dan folder spam.');
         } catch (error) { setMessage('signin-status', `Gagal mengirim ulang konfirmasi: ${error.message}`, true); }
         finally { button.disabled = false; }
-    };
+        };
+    }
 
-    $('btn-upload-submit').onclick = async () => {
-        const button = $('btn-upload-submit');
+    if ($('btn-upload-submit')) {
+        $('btn-upload-submit').onclick = async () => {
+            const button = $('btn-upload-submit');
         button.disabled = true;
         try {
             const form = $('file-form14').files[0];
@@ -617,34 +662,55 @@ function initHtmlUiEvents(sceneInstance) {
                 setMessage('student-status', `Status scan: ${scan.status}${scan.issues?.length ? ` — ${scan.issues.join('; ')}` : ''}`, true);
             } else setMessage('student-status', 'Pemrosesan masih berjalan. Periksa status scan nanti.');
         } catch (error) { setMessage('student-status', error.message, true); }
-        finally { button.disabled = false; }
-    };
-    $('worker-requests').addEventListener('click', event => {
-        const button = event.target.closest('.view-request');
-        if (button) openRequest(button.dataset.id);
-    });
-    $('worker-detail').addEventListener('click', detailAction);
+            finally { button.disabled = false; }
+        };
+    }
     
-    document.getElementById('btn-close-receptionist').onclick = () => {
-        document.getElementById('receptionist-ui').classList.add('hidden');
-        isUiActive = false;
-        returnGameFocus();
-    };
-}
+    if ($('worker-requests')) {
+        $('worker-requests').addEventListener('click', event => {
+            const button = event.target.closest('.view-request');
+            if (button) openRequest(button.dataset.id);
+        });
+    }
+    
+    if ($('worker-detail')) {
+        $('worker-detail').addEventListener('click', detailAction);
+    }
+    
+    if (document.getElementById('btn-close-receptionist')) {
+        document.getElementById('btn-close-receptionist').onclick = () => {
+            document.getElementById('receptionist-ui').classList.add('hidden');
+            isUiActive = false;
+            returnGameFocus();
+        };
+    }
+});
 
 // ==========================================
 // KONFIGURASI DAN INSTANSIASI GAME PHASER
 // ==========================================
-const config = {
-    type: Phaser.AUTO,
-    width: 1280,
-    height: 720,
-    parent: 'game-container',
-    physics: {
-        default: 'arcade',
-        arcade: { gravity: { y: 0 }, debug: true } // Ubah ke true jika ingin tes collider kembali
-    },
-    scene: [LobbyScene, Room1]
-};
+// Session Restorer & Game Init
+document.addEventListener('DOMContentLoaded', () => {
+    const stored = sessionStorage.getItem('eq_user');
+    if (stored) {
+        try { currentUser = JSON.parse(stored); } catch(e) {}
+    }
+    window.isDummyMode = sessionStorage.getItem('eq_dummy') === 'true';
 
-window.game = new Phaser.Game(config);
+    // Disable UI freeze if already in game
+    if (document.getElementById('game-container')) {
+        isUiActive = false;
+        const config = {
+            type: Phaser.AUTO,
+            width: 1280,
+            height: 720,
+            parent: 'game-container',
+            physics: {
+                default: 'arcade',
+                arcade: { gravity: { y: 0 }, debug: false }
+            },
+            scene: [LobbyScene, Room1]
+        };
+        window.game = new Phaser.Game(config);
+    }
+});
