@@ -1,9 +1,30 @@
+/* style.css */
 body {
     margin: 0;
     padding: 0;
-    background-color: #1a1a1a;
+    background-color: #0b0f19;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
+    font-family: 'Poppins', sans-serif;
 }
+
+#main-wrapper {
+    position: relative;
+    width: 1280px;
+    height: 720px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
+}
+
+/* Memastikan elemen yang di-hide benar-benar hilang */
+.hidden {
+    display: none !important;
+}
+
+/* Kustomisasi scrollbar untuk dashboard AI */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
