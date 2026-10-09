@@ -1,7 +1,8 @@
 import sharp from 'sharp'
 import { createWorker } from 'tesseract.js'
 import { createRequire } from 'node:module'
-import { checkExtraction, normalizeScanDate, type Attendance, type Extraction, type Profile } from './scan.ts'
+import { ApiError } from './api.ts'
+import { normalizeScanDate, type Extraction } from './scan.ts'
 
 const require = createRequire(import.meta.url)
 const english = require('@tesseract.js-data/eng') as { langPath: string; gzip: boolean }
@@ -32,9 +33,13 @@ function field(read: Read, location: string, minimum: number) {
 
 const ocrDate = (text: string) => normalizeScanDate(text.replace(/^(\d{1,2})[.,]\s*/, '$1 '))
 
-export async function tryReadForm14Fast(image: Buffer, profile: Profile, attendance: Attendance[], doctorPath: string | null): Promise<Extraction | null> {
-  const { width, height } = await sharp(image).metadata()
-  if (!width || !height || width < 1000 || height < 1200) return null
+export async function readForm14Ocr(image: Buffer): Promise<Extraction> {
+  let width: number | undefined
+  let height: number | undefined
+  try { ({ width, height } = await sharp(image).metadata()) }
+  catch { throw new ApiError(400, 'Gambar scan tidak dapat diproses') }
+  if (!width || !height || width < 1000 || height < 1200)
+    throw new ApiError(422, 'Resolusi scan terlalu rendah; unggah gambar yang lebih jelas')
   const { data: pixels } = await sharp(image).greyscale().raw().toBuffer({ resolveWithObject: true })
   const rowHasInk = (index: number) => {
     const top = .456 + index * .051
@@ -43,7 +48,7 @@ export async function tryReadForm14Fast(image: Buffer, profile: Profile, attenda
       inkFraction(pixels, width, height, [left, top, right, bottom]) >= .002)
   }
   const rows = Array.from({ length: 5 }, (_, index) => index).filter(rowHasInk)
-  if (!rows.length) return null
+  if (!rows.length) throw new ApiError(422, 'Baris Form 14 tidak terbaca; unggah scan yang lebih jelas')
 
   let worker: Awaited<ReturnType<typeof createWorker>> | undefined
   try {
@@ -67,8 +72,8 @@ export async function tryReadForm14Fast(image: Buffer, profile: Profile, attenda
     const nrp = footerNrp.text.match(/\b\d{8,}\b/)?.[0] ?? ''
     const headerPart = header.text.split('/')[0]
     const headerDigits = headerPart.replace(/\D/g, '')
-    if (!nrp || !header.text.includes('/') || !closeTo(headerDigits, nrp) ||
-        (headerDigits !== nrp && !/[^\d\s]/.test(headerPart))) return null
+    const nrpMatches = !!nrp && header.text.includes('/') && closeTo(headerDigits, nrp) &&
+      (headerDigits === nrp || /[^\d\s]/.test(headerPart))
 
     const extractedLines = []
     for (const index of rows) {
@@ -91,17 +96,18 @@ export async function tryReadForm14Fast(image: Buffer, profile: Profile, attenda
     const studentSigned = inkFraction(pixels, width, height, [.62, .86, .82, .89]) >= .02
     const extraction: Extraction = {
       name: field(name, 'nama', 70),
-      nrp: { text: nrp, confidence: footerNrp.confidence >= 50 ? .9 : footerNrp.confidence / 100, location: 'NRP bawah' },
+      nrp: { text: nrp, confidence: nrpMatches && footerNrp.confidence >= 50 ? .9 : Math.min(footerNrp.confidence / 100, .5), location: 'NRP bawah' },
       class_name: field({ ...className, text: className.text.replace(/^[^\p{L}\d]+/u, '') }, 'kelas', 60),
       program: field(program, 'program studi', 60),
       statement_date: field({ ...statementDate, text: ocrDate(statementDate.text) }, 'tanggal pernyataan', 65),
       student_signature: { present: studentSigned, confidence: studentSigned ? .9 : 0, location: 'tanda tangan mahasiswa' },
       lines: extractedLines,
     }
-    return checkExtraction(extraction, profile, attendance, doctorPath).issues.length ? null : extraction
+    return extraction
   } catch (error) {
-    console.warn('Form 14 fast OCR unavailable; falling back to vision model', error)
-    return null
+    if (error instanceof ApiError) throw error
+    console.error('Form 14 OCR failed', error)
+    throw new ApiError(502, 'Gagal membaca scan; coba unggah gambar yang lebih jelas')
   } finally {
     await worker?.terminate()
   }

@@ -129,8 +129,8 @@ async function pollScan(scanId) {
         const { scan } = await api(`/api/scans/${encodeURIComponent(scanId)}`);
         renderScanResult(scan);
         const message = scan.status === 'processing' || scan.status === 'uploaded'
-            ? `AI sedang membaca scan... ${Math.floor((count + 1) * 3 / 60)} menit ${((count + 1) * 3) % 60} detik.`
-            : `Status scan: ${scan.status}${scan.issues?.length ? ` — ${scan.issues.join('; ')}` : ''}`;
+            ? `Sistem sedang membaca scan... ${Math.floor((count + 1) * 3 / 60)} menit ${((count + 1) * 3) % 60} detik.`
+            : `Status scan: ${scan.status === 'ai_failed' ? 'Pembacaan gagal' : scan.status}${scan.issues?.length ? ` — ${scan.issues.join('; ')}` : ''}`;
         setMessage('student-status', message, scan.status === 'ai_failed' || scan.status === 'needs_reupload');
         if (!['uploaded', 'processing'].includes(scan.status)) return scan;
     }

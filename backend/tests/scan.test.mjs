@@ -104,7 +104,7 @@ test('new synthetic scan has visible lecturer marks in its first row', async () 
   for (let row = 1; row < 5; row++) assert.equal(await formRowHasInk(image, row), false)
 })
 
-test('the supplied one-page Form 14 PDF renders to a PNG for Ollama', async () => {
+test('the supplied one-page Form 14 PDF renders to a PNG for OCR', async () => {
   const pdf = await readFile(new URL('./fixtures/Surat-Pernyataan-PENS-ATTENDANCE.pdf', import.meta.url))
   const image = await renderPdf(pdf)
   assert.equal(image.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')

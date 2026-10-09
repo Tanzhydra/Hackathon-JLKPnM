@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduQuest AI - BAAK PENS</title>
+    <title>EduQuest - BAAK PENS</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
@@ -24,7 +24,7 @@
             <!-- 1. OPENING SCREEN -->
             <div id="opening-screen" class="ui-screen pointer-events-auto absolute inset-0 flex flex-col justify-center items-center bg-black/5 backdrop-blur-[2px]">
                 <div class="bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center max-w-md border border-white/50">
-                    <h1 class="text-2xl font-bold text-slate-800 mb-2">EduQuest AI</h1>
+                    <h1 class="text-2xl font-bold text-slate-800 mb-2">EduQuest</h1>
                     <p class="text-slate-600 mb-6 text-sm">Sistem Layanan Presensi & Koreksi Otomatis Kampus</p>
                     <button onclick="goToSignin()" class="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold shadow-md hover:bg-blue-700 transition">Mulai Masuk</button>
                 </div>
@@ -116,7 +116,7 @@
 
             <div id="btn-interact-worker" class="absolute bottom-10 flex justify-center w-full pointer-events-auto hidden">
                 <button onclick="openWorkerUI()" class="px-6 py-3 bg-emerald-600/95 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-[0_10px_25px_rgba(5,150,105,0.5)] border border-emerald-400 transition-transform transform hover:-translate-y-1">
-                    💻 Buka Dashboard AI Verifikasi
+                    💻 Buka Dashboard Verifikasi
                 </button>
             </div>
 
@@ -124,7 +124,7 @@
             <div id="receptionist-ui" class="ui-screen pointer-events-auto absolute inset-0 flex justify-center items-center bg-black/60 backdrop-blur-sm hidden">
                 <div class="bg-white w-[600px] p-8 rounded-2xl shadow-2xl text-left transform transition-all">
                     <h2 class="text-xl font-bold text-slate-800 mb-1">Form Pengajuan Dokumen (Mahasiswa)</h2>
-                    <p class="text-xs text-slate-500 mb-5">Unggah scan Form 14 untuk diproses sistem AI OCR.</p>
+                    <p class="text-xs text-slate-500 mb-5">Unggah scan Form 14 untuk dibaca oleh sistem.</p>
                     
                     <label class="block text-xs font-semibold text-slate-700 mb-1.5">Scan Form 14:</label>
                     <input type="file" id="file-form14" accept=".pdf,.jpg,.jpeg,.png" class="w-full p-2.5 border border-slate-300 rounded-xl bg-slate-50 text-sm mb-4 cursor-pointer">
@@ -139,7 +139,7 @@
 
                     <div class="flex justify-end gap-3">
                         <button id="btn-close-receptionist" class="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-300 transition">Tutup</button>
-                        <button id="btn-upload-submit" class="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition shadow-md">Kirim ke AI</button>
+                        <button id="btn-upload-submit" class="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition shadow-md">Baca scan</button>
                     </div>
                 </div>
             </div>

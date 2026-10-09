@@ -46,13 +46,12 @@ export async function POST(request: Request) {
     if (!claimed.data?.length) return noStore({ ...started, status: 'processing' }, 202)
     after(async () => {
       try {
-        await service.from('form14_scan_events').insert({ scan_id: started.scan_id, actor: 'vision-service', action: 'processing', rule_version: 'scan-v1' })
+        await service.from('form14_scan_events').insert({ scan_id: started.scan_id, actor: 'ocr-service', action: 'processing', rule_version: 'scan-v1' })
         const downloaded = await db.storage.from('form14-private').download(input.form_path)
         if (downloaded.error || !downloaded.data) throw new ApiError(409, 'Scan belum berhasil diunggah')
         const profile = unwrap(await db.from('profiles').select('full_name,nrp,class_name,program_code').eq('id', user.id).single())
         const attendance = unwrap(await db.from('attendance').select('id,class_date,course_name,week_no,status').eq('student_id', user.id))
-        const { extraction, modelVersion } = await readForm14WithSource(await downloaded.data.arrayBuffer(), input.form_path,
-          { profile, attendance, doctorPath: input.doctor_path ?? null })
+        const { extraction, modelVersion } = await readForm14WithSource(await downloaded.data.arrayBuffer(), input.form_path)
         const checked = checkExtraction(extraction, profile, attendance, input.doctor_path ?? null)
         const status = checked.issues.length ? 'needs_reupload' : 'ready'
         unwrap(await service.from('form14_scans').update({
@@ -61,14 +60,14 @@ export async function POST(request: Request) {
           issues: checked.issues, model_version: modelVersion,
           rule_version: 'scan-v1', processed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
         }).eq('id', started.scan_id).select('id').single())
-        await service.from('form14_scan_events').insert({ scan_id: started.scan_id, actor: 'vision-service', action: status,
+        await service.from('form14_scan_events').insert({ scan_id: started.scan_id, actor: 'ocr-service', action: status,
           reason: checked.issues.join('; ') || null, model_version: modelVersion, rule_version: 'scan-v1' })
       } catch (error) {
         console.error('Form 14 scan processing failed', error)
-        const issue = error instanceof ApiError ? error.message : 'Pembacaan AI gagal; periksa log server'
+        const issue = error instanceof ApiError ? error.message : 'Pembacaan scan gagal; periksa log server'
         await service.from('form14_scans').update({ status: 'ai_failed', issues: [issue],
           updated_at: new Date().toISOString() }).eq('id', started.scan_id).eq('status', 'processing')
-        await service.from('form14_scan_events').insert({ scan_id: started.scan_id, actor: 'vision-service', action: 'ai_failed',
+        await service.from('form14_scan_events').insert({ scan_id: started.scan_id, actor: 'ocr-service', action: 'ai_failed',
           reason: error instanceof Error ? error.message.slice(0, 300) : 'Kesalahan tidak diketahui', rule_version: 'scan-v1' })
       }
     })
