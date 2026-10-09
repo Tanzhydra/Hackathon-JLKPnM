@@ -155,7 +155,7 @@ async function loadDashboard() {
         $('worker-requests').innerHTML = requests.length ? requests.map(r => {
             const student = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
             return `<div class="grid grid-cols-6 items-center px-2 py-2 border-b gap-2"><span title="${safe(r.id)}">${safe(r.id.slice(0, 8))}</span><span>${safe(student?.full_name || '—')}</span><span>Form 14</span><span>${shortDate(r.created_at)}</span><span>${safe(r.status)}</span><button class="view-request text-blue-700 underline" data-id="${safe(r.id)}">Lihat</button></div>`;
-        }).join('') : 'Belum ada pengajuan.';
+        }).join('') : `Belum ada pengajuan untuk program ${safe(data.profile.program_code)}. Pastikan program akun pegawai sesuai dengan program mahasiswa.`;
         setMessage('worker-status', '');
     } catch (error) { setMessage('worker-status', error.message, true); }
 }

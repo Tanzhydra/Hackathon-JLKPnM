@@ -4,3 +4,4 @@ node_modules/
 *.tsbuildinfo
 /public/frontend/
 .demo-accounts.local.json
+.demo-pegawai.local.json
