@@ -420,7 +420,7 @@ class Room1 extends Phaser.Scene {
         this.physics.add.collider(this.player, this.obstacles);
 
         // ZONA MEJA KERJA: Dipindah pas ke meja kanan bawah yang kosong
-        this.deskZone = this.add.zone(offsetX + (650 * scaleFactor), offsetY + (620 * scaleFactor), 140, 120);
+        this.deskZone = this.add.zone(offsetX + (980 * scaleFactor), offsetY + (720 * scaleFactor), 240, 180);
         this.physics.add.existing(this.deskZone, true);
 
         this.cursors = this.input.keyboard.addKeys({
