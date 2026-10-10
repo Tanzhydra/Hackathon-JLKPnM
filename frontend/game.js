@@ -365,15 +365,27 @@ function returnGameFocus() {
     }, 100);
 }
 
+function setGameKeyboardEnabled(enabled) {
+    if (!window.game?.scene) return;
+    const currentScene = window.game.scene.scenes.find(scene => scene.scene.isActive());
+    const keyboard = currentScene?.input?.keyboard;
+    if (!keyboard) return;
+
+    keyboard.enabled = enabled;
+    if (!enabled && typeof keyboard.resetKeys === 'function') keyboard.resetKeys();
+}
+
 function openChatPanel() {
     $('chat-panel').classList.remove('hidden');
     isUiActive = true;
+    setGameKeyboardEnabled(false);
     $('chat-question').focus();
 }
 
 function closeChatPanel() {
     $('chat-panel').classList.add('hidden');
     isUiActive = false;
+    setGameKeyboardEnabled(true);
     returnGameFocus();
 }
 
@@ -758,6 +770,16 @@ const btnLift = document.getElementById('btn-interact-lift');
 // 3. EVENT LISTENER UNTUK HTML FORM
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('keydown', event => {
+        const target = event.target;
+        const isTextField = target instanceof HTMLInputElement
+            || target instanceof HTMLTextAreaElement
+            || target.isContentEditable;
+        if (isTextField && ['w', 'a', 's', 'd'].includes(event.key.toLowerCase())) {
+            event.stopPropagation();
+        }
+    }, true);
+
     if ($('open-chat-button')) {
         $('open-chat-button').addEventListener('click', openChatPanel);
         $('close-chat-button').addEventListener('click', closeChatPanel);
